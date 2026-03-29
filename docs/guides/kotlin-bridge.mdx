@@ -1,0 +1,169 @@
+---
+title: Kotlin bridge
+description: Sending and receiving events from your Kotlin game plugin.
+---
+
+## Overview
+
+The Kotlin bridge communicates with HyLay through a **Named Pipe** at `\\.\pipe\hylay_pipe`. Messages are newline-delimited JSON strings.
+
+The same protocol is used for all communication — there's no separate SDK. You write JSON to the pipe, HyLay routes it.
+
+---
+
+## HyLayBridge object
+
+Copy this object into your plugin:
+
+```kotlin
+import java.io.RandomAccessFile
+
+object HyLayBridge {
+
+    // Send a domain event → DLL will forward to the web UI
+    fun emitEvent(event: String, payload: Map<String, Any>) {
+        send(mapOf(
+            "type"    to "emit_event",
+            "event"   to event,
+            "payload" to payload,
+            "origin"  to "client"
+        ))
+    }
+
+    // System commands — also available from the web UI
+    fun setClickThrough(enabled: Boolean) =
+        send(mapOf("type" to "set_click_through", "enabled" to enabled))
+
+    fun loadUrl(url: String) =
+        send(mapOf("type" to "load_url", "url" to url))
+
+    fun evalJs(script: String) =
+        send(mapOf("type" to "eval_js", "script" to script))
+    }
+
+    private fun toJson(obj: Map<String, Any>): String = buildString {
+        append("{")
+        obj.entries.forEachIndexed { i, (k, v) ->
+            if (i > 0) append(",")
+            append("\"$k\":")
+            when (v) {
+                is String           -> append("\"$v\"")
+                is Boolean          -> append(v)
+                is Number           -> append(v)
+                is Map<*, *>        -> @Suppress("UNCHECKED_CAST")
+                                       append(toJson(v as Map<String, Any>))
+                else                -> append("\"$v\"")
+            }
+        }
+        append("}")
+    }
+}
+```
+
+---
+
+## Sending events
+
+### Notify the UI that a player connected
+
+```kotlin
+override fun onPlayerConnect(event: PlayerConnectEvent) {
+    HyLayBridge.emitEvent("playerConnect", mapOf(
+        "playerName" to event.playerRef.username,
+        "level"      to 42,
+        "health"     to 320
+    ))
+}
+```
+
+The web UI receives this as:
+
+```json
+{
+  "event": "playerConnect",
+  "payload": { "playerName": "Ruan625Br", "level": 42, "health": 320 },
+  "origin": "client"
+}
+```
+
+### Update health in real time
+
+```kotlin
+fun onHealthChange(player: String, hp: Int) {
+    HyLayBridge.emitEvent("playerHealthChange", mapOf(
+        "playerName" to player,
+        "health"     to hp
+    ))
+}
+```
+
+### Load a different UI screen
+
+```kotlin
+// Navigate the WebView to a different page
+HyLayBridge.loadUrl("http://localhost:5173/death-screen")
+```
+
+### Run arbitrary JavaScript
+
+```kotlin
+// Useful for one-off updates without a full event
+HyLayBridge.evalJs("document.title = 'Round 2'")
+```
+
+---
+
+## Event naming conventions
+
+Use `camelCase` for event names. Namespace them if your plugin has multiple features:
+
+```kotlin
+// Good
+HyLayBridge.emitEvent("playerConnect",      mapOf(...))
+HyLayBridge.emitEvent("inventoryOpen",      mapOf(...))
+HyLayBridge.emitEvent("questComplete",      mapOf(...))
+
+// Avoid
+HyLayBridge.emitEvent("PLAYER_CONNECT",     mapOf(...))  // ALL_CAPS
+HyLayBridge.emitEvent("player-connect",     mapOf(...))  // kebab-case
+```
+
+---
+
+## Error handling
+
+The pipe connection will fail if:
+
+- HyLay hasn't been injected yet
+- The game process doesn't have HyLay running
+- The pipe server hasn't started yet (brief window at startup)
+
+The `HyLayBridge` object catches all exceptions silently. For production use, add retry logic if the event is critical:
+
+```kotlin
+fun emitWithRetry(event: String, payload: Map<String, Any>, retries: Int = 3) {
+    repeat(retries) { attempt ->
+        try {
+            HyLayBridge.emitEvent(event, payload)
+            return
+        } catch (e: Exception) {
+            if (attempt < retries - 1) Thread.sleep(200)
+        }
+    }
+}
+```
+
+---
+
+## Protocol reference
+
+Every message sent to the pipe must be:
+- Valid JSON
+- On a single line (no newlines inside the message)
+- Terminated with `\n`
+
+```json
+{"type":"emit_event","event":"playerConnect","payload":{"playerName":"Ruan625Br"},"origin":"client"}\n
+```
+
+See [Commands reference](/api-reference/commands) for all available `type` values.

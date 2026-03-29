@@ -1,0 +1,39 @@
+---
+title: Vue
+description: Using HyLay with Vue 3 and the Composition API.
+---
+
+<Warning>
+    This guide is coming soon. The Vue bridge is functionally identical to the React bridge — the same `window.__hyBridge` and `window.ipc` APIs are available.
+</Warning>
+
+## Using the bridge without React hooks
+
+Since HyLay's bridge is just `window.__hyBridge` and `window.ipc`, it works in any framework. In Vue 3:
+
+```ts
+// composables/useHyBridge.ts
+import { onMounted, onUnmounted } from "vue"
+
+export function useHyEvent(event: string, handler: (payload: unknown) => void) {
+  const wrapped = (e: HyEvent) => {
+    if (e.event === event) handler(e.payload)
+  }
+
+  onMounted(() => {
+    const prev = window.__hyBridge?.onEvent
+    window.__hyBridge = {
+      onEvent(e) {
+        prev?.(e)
+        wrapped(e)
+      }
+    }
+  })
+}
+
+export function sendToRust(cmd: object) {
+  window.ipc?.postMessage(JSON.stringify(cmd))
+}
+```
+
+A full Vue composable guide will be added when the API stabilizes.

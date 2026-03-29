@@ -1,0 +1,36 @@
+---
+title: Vanilla JS
+description: Using HyLay without a framework.
+---
+
+<Warning>
+    This guide is coming soon.
+</Warning>
+
+## Using the bridge directly
+
+No framework required. HyLay exposes two globals in the loaded page:
+
+```js
+// Receive events from the game client
+window.__hyBridge = {
+  onEvent(e) {
+    if (e.event === "playerConnect") {
+      document.getElementById("name").textContent = e.payload.playerName
+    }
+  }
+}
+
+// Send commands to the DLL
+function setClickThrough(enabled) {
+  window.ipc?.postMessage(JSON.stringify({
+    type: "set_click_through",
+    enabled
+  }))
+}
+
+document.getElementById("menu-btn").addEventListener("mouseenter", () => setClickThrough(false))
+document.getElementById("menu-btn").addEventListener("mouseleave", () => setClickThrough(true))
+```
+
+A full vanilla guide covering initialization, event registry patterns, and production bundling will be added when the API stabilizes.

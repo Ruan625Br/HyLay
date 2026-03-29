@@ -1,97 +1,44 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: Introduction
+description: HyLay is a framework-agnostic game UI overlay engine for Windows, built on WebView2 and Rust.
 ---
 
-## Setting up
+<Warning>
+  HyLay is under active development. APIs may change before v1.0.
+</Warning>
 
-Get your documentation site up and running in minutes.
+## What is HyLay?
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+HyLay lets you build game overlay UIs using any web framework, React, Vue, Svelte, or plain HTML/CSS/JS, and render them directly on top of a running Windows game.
 
-## Make it yours
+It works by injecting a DLL into the game process that hosts a transparent WebView2 window over the game surface, and exposes a bidirectional event bridge so your UI can communicate with the game client in real time.
 
-Design a docs site that looks great and empowers your users.
+Think of it as **NUI for any game**, similar to how FiveM's NUI lets you build Lua-to-web bridges, or how NoesisGUI lets engines render XAML
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+## Key features
+
+<CardGroup cols={2}>
+  <Card title="Framework agnostic" icon="layer-group">
+    React, Vue, Svelte, vanilla JS, any framework that runs in a browser works out of the box.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Bidirectional events" icon="arrow-right-arrow-left">
+    Send events from the game client (Kotlin/Java) to the UI and back, in real time through Named Pipes.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
 
-## Create beautiful pages
+</CardGroup>
 
-Everything you need to create world-class documentation.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
 
-## Need inspiration?
+## Designed for
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+- **Hytale plugins** — build HUD elements, menus, and overlays controlled by server-side Kotlin logic
+- **Rapid UI iteration** — use your existing web tooling (Vite, hot reload, Tailwind) to build game UIs
+
+## Not designed for
+
+- Anti-cheat protected games (DLL injection will trigger detection)
+- Non-Windows platforms (Windows 10+ required for WebView2)
+
+---
+
+Ready to get started? Head to the [Quickstart](/quickstart) guide.

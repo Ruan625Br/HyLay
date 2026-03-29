@@ -1,0 +1,178 @@
+---
+title: React
+description: Using HyLay with React and TypeScript.
+---
+
+## Installation
+
+Starting your Vite dev server, copy the bridge files into your React project:
+
+```
+src/
+├─ hooks/
+│  └─ useHyBridge.ts      # Bridge hook
+└─ types/
+   └─ hy-bridge.d.ts     # Global Window types
+```
+
+---
+
+## Type declarations
+
+`src/types/hy-bridge.d.ts` extends the global `Window` interface so TypeScript knows about the bridge without any imports:
+
+```ts
+type HyEventOrigin = "web" | "client"
+
+interface HyEvent {
+  event:   string
+  payload: unknown
+  origin:  HyEventOrigin
+}
+
+declare global {
+  interface Window {
+    __hyBridge?: { onEvent: (e: HyEvent) => void }
+    ipc?:        { postMessage: (msg: string) => void }
+  }
+}
+
+export {}
+```
+
+---
+
+## useHyBridge
+
+Returns functions to send commands to the DLL from your components.
+
+```ts
+import { useHyBridge } from "./hooks/useHyBridge"
+
+function MyComponent() {
+  const { setClickThrough, loadUrl, emitToClient } = useHyBridge()
+
+  return (
+    <button
+      onMouseEnter={() => setClickThrough(false)}
+      onMouseLeave={() => setClickThrough(true)}
+      onClick={() => emitToClient("buttonClick", { id: "menu-open" })}
+    >
+      Open menu
+    </button>
+  )
+}
+```
+
+### Methods
+
+| Method | Description |
+|--------|-------------|
+| `setClickThrough(enabled)` | `true` = clicks pass to game, `false` = UI captures clicks |
+| `loadUrl(url)` | Navigate the WebView to a new URL |
+| `emitToClient(event, payload)` | Send an event back to the game client *(not yet implemented)* |
+
+---
+
+## useHyEvent
+
+Subscribes to an event sent by the game client. Safe to use in multiple components — all subscriptions for the same event name are called.
+
+```ts
+import { useHyEvent } from "./hooks/useHyBridge"
+
+function PlayerInfo() {
+  const [name, setName] = useState("—")
+
+  useHyEvent("playerConnect", (payload) => {
+    const data = payload as { playerName: string }
+    setName(data.playerName)
+  })
+
+  return <div>{name}</div>
+}
+```
+
+<Info>
+    The handler is kept up to date on every render — no stale closure issues. You don't need to wrap it in `useCallback`.
+</Info>
+
+---
+
+## Click-through pattern
+
+The recommended pattern is to disable click-through when the mouse enters any interactive element, and re-enable it when it leaves:
+
+```tsx
+function HUD() {
+  const { setClickThrough } = useHyBridge()
+
+  return (
+    <>
+      {/* Static elements — no pointer events needed */}
+      <div className="health-bar" style={{ pointerEvents: "none" }}>
+        HP: 320
+      </div>
+
+      {/* Interactive element — toggles click-through */}
+      <button
+        onMouseEnter={() => setClickThrough(false)}
+        onMouseLeave={() => setClickThrough(true)}
+      >
+        Inventory
+      </button>
+    </>
+  )
+}
+```
+
+For menus that cover a large area, call `setClickThrough(false)` when the menu opens and `setClickThrough(true)` when it closes instead of using mouse events.
+
+---
+
+## Full example
+
+```tsx
+import { useState } from "react"
+import { useHyBridge, useHyEvent } from "./hooks/useHyBridge"
+
+interface PlayerData {
+  playerName: string
+  level:      number
+  health:     number
+}
+
+export default function GameHUD() {
+  const { setClickThrough } = useHyBridge()
+  const [player, setPlayer] = useState<PlayerData | null>(null)
+
+  useHyEvent("playerConnect", (payload) => {
+    setPlayer(payload as PlayerData)
+  })
+
+  useHyEvent("playerHealthChange", (payload) => {
+    const { health } = payload as { health: number }
+    setPlayer(p => p ? { ...p, health } : p)
+  })
+
+  return (
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none" }}>
+      {/* HUD — passthrough */}
+      {player && (
+        <div style={{ position: "absolute", top: 20, left: 20 }}>
+          {player.playerName} · HP {player.health}
+        </div>
+      )}
+
+      {/* Button — interactive */}
+      <button
+        style={{ position: "absolute", bottom: 20, right: 20, pointerEvents: "all" }}
+        onMouseEnter={() => setClickThrough(false)}
+        onMouseLeave={() => setClickThrough(true)}
+      >
+        Menu
+      </button>
+    </div>
+  )
+}
+```

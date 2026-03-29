@@ -1,0 +1,120 @@
+---
+title: Commands
+description: All commands accepted by the HyLay DLL, from any origin.
+---
+
+The HyLay DLL accepts the same JSON commands from two origins:
+
+- **Named Pipe** — from your Kotlin/Java game plugin
+- **window.ipc** — from your web UI via `window.ipc.postMessage()`
+
+All commands use the `type` field to identify the action. All messages must be valid JSON.
+
+---
+
+## emit_event
+
+Sends a domain event to the web UI. HyLay calls `window.__hyBridge.onEvent()` in the loaded page.
+
+```json
+{
+  "type": "emit_event",
+  "event": "playerConnect",
+  "payload": { "playerName": "Ruan625Br", "health": 320 },
+  "origin": "client"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `event` | `string` | ✓ | Event name. Received by `useHyEvent(event, handler)` |
+| `payload` | `object` | ✓ | Any JSON object. Passed as-is to the handler |
+| `origin` | `"client" \| "web"` | — | Defaults to `"client"` if omitted |
+
+---
+
+## set_click_through
+
+Toggles whether mouse clicks pass through the overlay to the game window.
+
+```json
+{
+  "type": "set_click_through",
+  "enabled": true
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `enabled` | `boolean` | ✓ | `true` = clicks pass to game (default). `false` = UI captures clicks |
+
+<Tip>
+    Call this from the web UI using `useHyBridge().setClickThrough(false)` when the mouse enters an interactive element.
+</Tip>
+
+---
+
+## load_url
+
+Navigates the WebView to a new URL.
+
+```json
+{
+  "type": "load_url",
+  "url": "http://localhost:5173/death-screen"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `url` | `string` | ✓ | Full URL to navigate to |
+
+---
+
+## eval_js
+
+Executes arbitrary JavaScript in the WebView context. Use sparingly — prefer `emit_event` for data updates.
+
+```json
+{
+  "type": "eval_js",
+  "script": "console.log('hello from rust')"
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `script` | `string` | ✓ | JavaScript string to execute |
+
+---
+
+## emit_to_client
+
+*(Not yet implemented)* — Sends an event from the web UI back to the game client through the Named Pipe.
+
+```json
+{
+  "type": "emit_to_client",
+  "event": "buttonClick",
+  "payload": { "id": "menu-open" }
+}
+```
+
+This will allow the UI to drive game logic in a future release.
+
+---
+
+## Message format rules
+
+All messages must follow these rules regardless of origin:
+
+```
+✓  {"type":"emit_event","event":"x","payload":{}}\n
+✓  {"type":"set_click_through","enabled":false}\n
+
+✗  {"type":"emit_event","event":"x","payload":{}  ← missing \n
+✗  {type: "emit_event"}                           ← invalid JSON (unquoted keys)
+✗  {"type":"unknown_command"}                     ← unknown type (logged, ignored)
+```
+
+The `\n` newline at the end of each message is required when writing to the Named Pipe. The `window.ipc.postMessage()` path does not require it.
